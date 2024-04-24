@@ -2,6 +2,8 @@
 // released under the GPLv3 license to match the rest of the AdaFruit NeoPixel library
 
 #include <Adafruit_NeoPixel.h>
+#include <Arduino.h>
+
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
@@ -20,6 +22,10 @@
 #define B_center 255
 
 #define NUMPIXELS      7  
+
+volatile bool intFlag = false;   // флаг
+volatile uint8_t step = 0;
+
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 int sin_color(int color, int step) {
@@ -87,12 +93,23 @@ void loading(uint8_t wait) {
   
 }
 
+void buttonTick() {
+  intFlag = true;   // подняли флаг прерывания
+}
+
 void setup() {
   pixels.begin(); // This initializes the NeoPixel library.
   pinMode(BTN_PIN, INPUT_PULLUP);
+  attachInterrupt(0, buttonTick, FALLING);
 }
 
 void loop() {
+  
+  if (intFlag) {
+    intFlag = false;    // сбрасываем
+    // совершаем какие-то действия
+    Serial.println("Interrupt!");
+  }
 
   loading(250);
 
