@@ -76,6 +76,17 @@ void sparks(uint8_t wait) {
   delay(wait);
 }
 
+void loading(uint8_t wait) {
+
+  pixels.clear();
+  pixels.setBrightness(255);
+  pixels.setPixelColor(1, 128, 128, 128);
+  pixels.setPixelColor(2, 30, 30, 30);
+  pixels.setPixelColor(3, 10, 10, 10);
+  pixels.show();
+  
+}
+
 void setup() {
   pixels.begin(); // This initializes the NeoPixel library.
   pinMode(BTN_PIN, INPUT_PULLUP);
@@ -83,7 +94,7 @@ void setup() {
 
 void loop() {
 
-  sparks(250);
+  loading(250);
 
 }
 
