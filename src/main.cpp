@@ -22,20 +22,27 @@
 #define G_REACTOR_CENTER 255
 #define B_REACTOR_CENTER 255
 
-#define WAIT_REACTOR 25
+#define WAIT_REACTOR 30
+#define WAIT_RAINBOW 15
+#define WAIT_SPARKS 60
 
 #define NUMPIXELS      7  
 
 volatile bool intFlag = false;   // флаг
-volatile int draw_step = 0;
+volatile uint16_t draw_step = 0;
+volatile uint16_t draw_mode = 0;
+
+#define REACTOR 0
+#define RAINBOW 1
+#define SPARKS 2
+
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
 
-
 void reactor() {
 
-  for (int i=0;i<NUMPIXELS-1;i++) {
+  for (int i=0; i<NUMPIXELS-1;i++) {
 
     pixels.setPixelColor(i, 
                           pixels.Color(sin_color(R_REACTOR, draw_step), 
@@ -49,40 +56,37 @@ void reactor() {
                           cos_color(B_REACTOR_CENTER, draw_step))); 
   pixels.show();
 
+  draw_step%=180;
   delay(WAIT_REACTOR);
 
 }
 
-uint32_t Wheel(byte WheelPos) {
-  if(WheelPos < 85) {
-   return pixels.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-  } else if(WheelPos < 170) {
-   WheelPos -= 85;
-   return pixels.Color(255 - WheelPos * 3, 0, WheelPos * 3);
-  } else {
-   WheelPos -= 170;
-   return pixels.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+void rainbow() {
+
+  for( int i=0; i < NUMPIXELS; i++) {
+
+    pixels.setPixelColor(i, Wheel((draw_step+i*10) & 255));
   }
+
+  pixels.show();
+
+  draw_step%=255;
+  delay(WAIT_RAINBOW);
+  
 }
 
-void rainbow(uint8_t wait) {
-  uint16_t i, j;
+void sparks() {
 
-  for(j=0; j<256; j++) {
-    for(i=0; i<NUMPIXELS; i++) {
-      pixels.setPixelColor(i, Wheel((i+j) & 255));
-    }
-    pixels.show();
-    delay(wait);
-  }
-}
-
-void sparks(uint8_t wait) {
   int num = random(7);
+
   pixels.clear();
   pixels.setPixelColor(num, R_REACTOR, G_REACTOR, B_REACTOR);
   pixels.show();
-  delay(wait);
+
+  draw_step = 0;
+
+  delay(WAIT_SPARKS);
+
 }
 
 void loading(uint8_t wait) {
@@ -112,11 +116,17 @@ void loop() {
   if (intFlag) {
     intFlag = false;    // сбрасываем
     // совершаем какие-то действия
-    Serial.println("flash");
     draw_step = 0;
+    draw_mode = (draw_mode + 1) % 3;
   }
 
-  reactor();
+  switch (draw_mode)
+  {
+  case REACTOR: reactor(); break;
+  case RAINBOW: rainbow(); break;
+  case SPARKS: sparks(); break;
+  }
+
   draw_step++;
 
 }
