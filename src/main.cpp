@@ -3,6 +3,7 @@
 
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
+#include <Effects.h>
 
 #ifdef __AVR__
   #include <avr/power.h>
@@ -11,43 +12,45 @@
 // Which pin on the Arduino is connected to the NeoPixels?
 // On a Trinket or Gemma we suggest changing this to 1
 #define PIN       3
-#define BTN_PIN   4 
+#define BTN_PIN   2 
 
-#define R 2
-#define G 130
-#define B 195
+#define R_REACTOR 2
+#define G_REACTOR 130
+#define B_REACTOR 195
 
-#define R_center 190
-#define G_center 255
-#define B_center 255
+#define R_REACTOR_CENTER 190
+#define G_REACTOR_CENTER 255
+#define B_REACTOR_CENTER 255
+
+#define WAIT_REACTOR 25
 
 #define NUMPIXELS      7  
 
 volatile bool intFlag = false;   // флаг
-volatile uint8_t step = 0;
+int draw_step = 0;
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
-int sin_color(int color, int step) {
-  float Val=abs((sin(step*(3.1415/180))));
-  return int(Val*color);
-}
 
-int cos_color(int color, int step) {
-  float Val=abs((cos(step*(3.1415/180))));
-  return int(Val*color);
-}
 
-void reactor(uint8_t wait) {
-  for (int step=0; step<180;step++) {
-    for (int i=0;i<NUMPIXELS-1;i++) {
-      pixels.setPixelColor(i, pixels.Color(sin_color(R, step), sin_color(G, step), sin_color(B, step))); 
-    }
-    
-    pixels.setPixelColor(NUMPIXELS-1, pixels.Color(cos_color(R_center, step), cos_color(G_center, step), cos_color(B_center, step))); 
-    pixels.show();
-    delay(wait);
+void reactor() {
+
+  for (int i=0;i<NUMPIXELS-1;i++) {
+
+    pixels.setPixelColor(i, 
+                          pixels.Color(sin_color(R_REACTOR, draw_step), 
+                          sin_color(G_REACTOR, draw_step), 
+                          sin_color(B_REACTOR, draw_step))); 
   }
+    
+  pixels.setPixelColor(NUMPIXELS-1, 
+                          pixels.Color(cos_color(R_REACTOR_CENTER, draw_step), 
+                          cos_color(G_REACTOR_CENTER, draw_step), 
+                          cos_color(B_REACTOR_CENTER, draw_step))); 
+  pixels.show();
+  
+  delay(WAIT_REACTOR);
+
 }
 
 uint32_t Wheel(byte WheelPos) {
@@ -77,7 +80,7 @@ void rainbow(uint8_t wait) {
 void sparks(uint8_t wait) {
   int num = random(7);
   pixels.clear();
-  pixels.setPixelColor(num, R, G, B);
+  pixels.setPixelColor(num, R_REACTOR, G_REACTOR, B_REACTOR);
   pixels.show();
   delay(wait);
 }
@@ -98,6 +101,7 @@ void buttonTick() {
 }
 
 void setup() {
+  Serial.begin(9600);
   pixels.begin(); // This initializes the NeoPixel library.
   pinMode(BTN_PIN, INPUT_PULLUP);
   attachInterrupt(0, buttonTick, FALLING);
@@ -108,10 +112,12 @@ void loop() {
   if (intFlag) {
     intFlag = false;    // сбрасываем
     // совершаем какие-то действия
-    Serial.println("Interrupt!");
+    Serial.println("flash");
+    draw_step = 0;
   }
 
-  loading(250);
+  reactor();
+  draw_step++;
 
 }
 
