@@ -27,7 +27,7 @@
 #define NUMPIXELS      7  
 
 volatile bool intFlag = false;   // флаг
-int draw_step = 0;
+volatile int draw_step = 0;
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -48,7 +48,7 @@ void reactor() {
                           cos_color(G_REACTOR_CENTER, draw_step), 
                           cos_color(B_REACTOR_CENTER, draw_step))); 
   pixels.show();
-  
+
   delay(WAIT_REACTOR);
 
 }
