@@ -206,6 +206,7 @@ uint32_t getFireColor(int val) {
            constrain(map(val, 20, 60, MIN_BRIGHT, MAX_BRIGHT), 0, 255)  // V
          );
 }
+
 #pragma endregion
 
 void buttonTick() {
