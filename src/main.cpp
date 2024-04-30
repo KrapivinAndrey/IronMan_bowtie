@@ -3,17 +3,12 @@
 
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
-#include <Effects.h>
 
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
 
-// Which pin on the Arduino is connected to the NeoPixels?
-// On a Trinket or Gemma we suggest changing this to 1
-#define PIN       3
-#define BTN_PIN   2 
-
+#pragma region Const
 #define R_REACTOR 2
 #define G_REACTOR 130
 #define B_REACTOR 195
@@ -23,10 +18,18 @@
 #define B_REACTOR_CENTER 255
 
 #define WAIT_REACTOR 30
-#define WAIT_RAINBOW 15
+#define WAIT_RAINBOW 30
 #define WAIT_SPARKS 60
+#define WAIT_LOADING 90
 
-#define NUMPIXELS      7  
+#define NUMPIXELS 7 
+#pragma endregion
+
+// Which pin on the Arduino is connected to the NeoPixels?
+// On a Trinket or Gemma we suggest changing this to 1
+#define PIN       3
+#define BTN_PIN   2 
+
 
 volatile bool intFlag = false;   // флаг
 volatile uint16_t draw_step = 0;
@@ -35,10 +38,13 @@ volatile uint16_t draw_mode = 0;
 #define REACTOR 0
 #define RAINBOW 1
 #define SPARKS 2
+#define LOADING 3
 
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
+
+#pragma region Effects
 
 void reactor() {
 
@@ -65,7 +71,7 @@ void rainbow() {
 
   for( int i=0; i < NUMPIXELS; i++) {
 
-    pixels.setPixelColor(i, Wheel((draw_step+i*10) & 255));
+    pixels.setPixelColor(i, Wheel((draw_step+i*30) & 255));
   }
 
   pixels.show();
@@ -89,16 +95,50 @@ void sparks() {
 
 }
 
-void loading(uint8_t wait) {
+void loading() {
 
   pixels.clear();
-  pixels.setBrightness(255);
-  pixels.setPixelColor(1, 128, 128, 128);
-  pixels.setPixelColor(2, 30, 30, 30);
-  pixels.setPixelColor(3, 10, 10, 10);
+  pixels.setPixelColor((draw_step + 1) % 6, 128, 128, 128);
+  pixels.setPixelColor((draw_step + 2) % 6, 30, 30, 30);
+  pixels.setPixelColor((draw_step + 3) % 6, 10, 10, 10);
+
+  draw_step%=6;
+
   pixels.show();
+
+  delay(WAIT_LOADING);
   
 }
+
+#pragma endregion Effects
+
+#pragma region Helpers
+static uint32_t Color(uint8_t r, uint8_t g, uint8_t b) {
+    return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
+  }
+
+int sin_color(int color, int step) {
+  float Val = abs((sin(step*(3.1415/180))));
+  return int(Val*color);
+}
+
+int cos_color(int color, int step) {
+  float Val = abs((cos(step*(3.1415/180))));
+  return int(Val*color);
+}
+
+uint32_t Wheel(byte WheelPos) {
+  if(WheelPos < 85) {
+   return Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+  } else if(WheelPos < 170) {
+   WheelPos -= 85;
+   return Color(255 - WheelPos * 3, 0, WheelPos * 3);
+  } else {
+   WheelPos -= 170;
+   return Color(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+}
+#pragma endregion
 
 void buttonTick() {
   intFlag = true;   // подняли флаг прерывания
@@ -117,7 +157,7 @@ void loop() {
     intFlag = false;    // сбрасываем
     // совершаем какие-то действия
     draw_step = 0;
-    draw_mode = (draw_mode + 1) % 3;
+    draw_mode = (draw_mode + 1) % 4;
   }
 
   switch (draw_mode)
@@ -125,6 +165,7 @@ void loop() {
   case REACTOR: reactor(); break;
   case RAINBOW: rainbow(); break;
   case SPARKS: sparks(); break;
+  case LOADING: loading(); break;
   }
 
   draw_step++;
