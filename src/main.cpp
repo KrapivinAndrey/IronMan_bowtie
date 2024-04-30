@@ -26,11 +26,11 @@
 #define MIN_SAT 245     // мин. насыщенность
 #define MAX_SAT 255     // макс. насыщенность
 
-#define WAIT_REACTOR 30
+#define WAIT_REACTOR 62
 #define WAIT_RAINBOW 30
 #define WAIT_SPARKS 60
 #define WAIT_LOADING 90
-#define WAIT_FIRE 90
+#define WAIT_FIRE 125
 
 #define NUMPIXELS 7 
 #pragma endregion
@@ -49,6 +49,7 @@ byte zoneRndValues[ZONE_AMOUNT];
 volatile bool intFlag = false;   // флаг
 volatile uint16_t draw_step = 0;
 volatile uint16_t draw_mode = 0;
+volatile uint32_t prevTime;
 
 #define REACTOR 0
 #define RAINBOW 1
@@ -58,98 +59,6 @@ volatile uint16_t draw_mode = 0;
 
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
-
-
-#pragma region Effects
-
-void reactor() {
-
-  for (int i=0; i<NUMPIXELS-1;i++) {
-
-    pixels.setPixelColor(i, 
-                          pixels.Color(sin_color(R_REACTOR, draw_step), 
-                          sin_color(G_REACTOR, draw_step), 
-                          sin_color(B_REACTOR, draw_step))); 
-  }
-    
-  pixels.setPixelColor(NUMPIXELS-1, 
-                          pixels.Color(cos_color(R_REACTOR_CENTER, draw_step), 
-                          cos_color(G_REACTOR_CENTER, draw_step), 
-                          cos_color(B_REACTOR_CENTER, draw_step))); 
-  pixels.show();
-
-  draw_step%=180;
-  delay(WAIT_REACTOR);
-
-}
-
-void rainbow() {
-
-  for( int i=0; i < NUMPIXELS; i++) {
-
-    pixels.setPixelColor(i, Wheel((draw_step+i*30) & 255));
-  }
-
-  pixels.show();
-
-  draw_step%=255;
-  delay(WAIT_RAINBOW);
-  
-}
-
-void sparks() {
-
-  int num = random(7);
-
-  pixels.clear();
-  pixels.setPixelColor(num, R_REACTOR, G_REACTOR, B_REACTOR);
-  pixels.show();
-
-  draw_step = 0;
-
-  delay(WAIT_SPARKS);
-
-}
-
-void loading() {
-
-  pixels.clear();
-  pixels.setPixelColor((draw_step + 1) % 6, 128, 128, 128);
-  pixels.setPixelColor((draw_step + 2) % 6, 30, 30, 30);
-  pixels.setPixelColor((draw_step + 3) % 6, 10, 10, 10);
-
-  draw_step%=6;
-
-  pixels.show();
-
-  delay(WAIT_LOADING);
-  
-}
-
-void fire() {
-  static uint32_t prevTime, prevTime2;
-
-  // задаём направление движения огня
-  if (millis() - prevTime > 100) {
-    prevTime = millis();
-    for(int i=0; i<ZONE_AMOUNT; i++) {
-      zoneRndValues[i] = random(0, 10);
-    }
-  }
-
-  // двигаем пламя
-  if (millis() - prevTime2 > 20) {
-    prevTime2 = millis();
-    int thisPos = 0, lastPos = 0;
-    for(int i=0; i<ZONE_AMOUNT;i++) {
-      zoneValues[i] = (float)zoneValues[i] * (1 - SMOOTH_K) + (float)zoneRndValues[i] * 10 * SMOOTH_K;
-      pixels.setPixelColor(i, getFireColor(zoneValues[i]));
-    }
-    pixels.show();
-  }
-}
-
-#pragma endregion Effects
 
 #pragma region Helpers
 
@@ -209,6 +118,105 @@ uint32_t getFireColor(int val) {
 
 #pragma endregion
 
+
+#pragma region Effects
+
+void reactor() {
+  
+  if (millis() - prevTime > WAIT_REACTOR) {
+    Serial.println(millis());
+    prevTime = millis();
+    for (int i=0; i<NUMPIXELS-1;i++) {
+      pixels.setPixelColor(i, 
+                            pixels.Color(sin_color(R_REACTOR, draw_step), 
+                            sin_color(G_REACTOR, draw_step), 
+                            sin_color(B_REACTOR, draw_step))); 
+    }
+      
+    pixels.setPixelColor(NUMPIXELS-1, 
+                            pixels.Color(cos_color(R_REACTOR_CENTER, draw_step), 
+                            cos_color(G_REACTOR_CENTER, draw_step), 
+                            cos_color(B_REACTOR_CENTER, draw_step))); 
+    pixels.show();
+    draw_step = (draw_step + 1) % 180;
+  }
+
+}
+
+void rainbow() {
+
+  if (millis() - prevTime > WAIT_RAINBOW) {
+    prevTime = millis();
+
+    for( int i=0; i < NUMPIXELS; i++) {
+      pixels.setPixelColor(i, Wheel((draw_step+i*30) & 255));
+    }
+
+    pixels.show();
+    draw_step=(draw_step + 1) % 255;
+
+  }
+  
+}
+
+void sparks() {
+
+  if (millis() - prevTime > WAIT_SPARKS) {
+    prevTime = millis();
+
+    int num = random(7);
+
+    pixels.clear();
+    pixels.setPixelColor(num, R_REACTOR, G_REACTOR, B_REACTOR);
+    pixels.show();
+
+  }
+
+}
+
+void loading() {
+
+  if (millis() - prevTime > WAIT_LOADING) {
+    prevTime = millis();
+
+    pixels.clear();
+    pixels.setPixelColor((draw_step + 1) % 6, 128, 128, 128);
+    pixels.setPixelColor((draw_step + 2) % 6, 30, 30, 30);
+    pixels.setPixelColor((draw_step + 3) % 6, 10, 10, 10);
+
+    draw_step=(draw_step + 1) % 6;
+
+    pixels.show();
+  }
+  
+  
+}
+
+void fire() {
+  static uint32_t prevTime, prevTime2;
+
+  // задаём направление движения огня
+  if (millis() - prevTime > WAIT_FIRE) {
+    prevTime = millis();
+    for(int i=0; i<ZONE_AMOUNT; i++) {
+      zoneRndValues[i] = random(0, 10);
+    }
+  }
+
+  // двигаем пламя
+  if (millis() - prevTime2 > 20) {
+    prevTime2 = millis();
+    int thisPos = 0, lastPos = 0;
+    for(int i=0; i<ZONE_AMOUNT;i++) {
+      zoneValues[i] = (float)zoneValues[i] * (1 - SMOOTH_K) + (float)zoneRndValues[i] * 10 * SMOOTH_K;
+      pixels.setPixelColor(i, getFireColor(zoneValues[i]));
+    }
+    pixels.show();
+  }
+}
+
+#pragma endregion Effects
+
 void buttonTick() {
   intFlag = true;   // подняли флаг прерывания
 }
@@ -237,8 +245,6 @@ void loop() {
   case LOADING: loading(); break;
   case FIRE: fire(); break;
   }
-
-  draw_step++;
 
 }
 
