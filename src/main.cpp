@@ -31,6 +31,7 @@
 #define WAIT_SPARKS 60
 #define WAIT_LOADING 90
 #define WAIT_FIRE 125
+#define WAIT_PATRIOT 10000
 
 #define NUMPIXELS 7 
 #pragma endregion
@@ -49,13 +50,13 @@ byte zoneRndValues[ZONE_AMOUNT];
 volatile bool intFlag = false;   // флаг
 volatile uint16_t draw_step = 0;
 volatile uint16_t draw_mode = 0;
-volatile uint32_t prevTime;
 
 #define REACTOR 0
 #define RAINBOW 1
 #define SPARKS 2
 #define LOADING 3
 #define FIRE 4
+#define PATRIOT 5
 
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -113,7 +114,7 @@ uint32_t getFireColor(int val) {
            HUE_START + map(val, 20, 60, 0, HUE_GAP),                    // H
            constrain(map(val, 20, 60, MAX_SAT, MIN_SAT), 0, 255),       // S
            constrain(map(val, 20, 60, MIN_BRIGHT, MAX_BRIGHT), 0, 255)  // V
-         );
+        );
 }
 
 #pragma endregion
@@ -122,9 +123,8 @@ uint32_t getFireColor(int val) {
 #pragma region Effects
 
 void reactor() {
-  
+  static uint32_t prevTime;
   if (millis() - prevTime > WAIT_REACTOR) {
-    Serial.println(millis());
     prevTime = millis();
     for (int i=0; i<NUMPIXELS-1;i++) {
       pixels.setPixelColor(i, 
@@ -144,7 +144,7 @@ void reactor() {
 }
 
 void rainbow() {
-
+  static uint32_t prevTime;
   if (millis() - prevTime > WAIT_RAINBOW) {
     prevTime = millis();
 
@@ -160,6 +160,7 @@ void rainbow() {
 }
 
 void sparks() {
+  static uint32_t prevTime;
 
   if (millis() - prevTime > WAIT_SPARKS) {
     prevTime = millis();
@@ -175,6 +176,7 @@ void sparks() {
 }
 
 void loading() {
+  static uint32_t prevTime;
 
   if (millis() - prevTime > WAIT_LOADING) {
     prevTime = millis();
@@ -188,7 +190,6 @@ void loading() {
 
     pixels.show();
   }
-  
   
 }
 
@@ -206,13 +207,32 @@ void fire() {
   // двигаем пламя
   if (millis() - prevTime2 > 20) {
     prevTime2 = millis();
-    int thisPos = 0, lastPos = 0;
     for(int i=0; i<ZONE_AMOUNT;i++) {
       zoneValues[i] = (float)zoneValues[i] * (1 - SMOOTH_K) + (float)zoneRndValues[i] * 10 * SMOOTH_K;
       pixels.setPixelColor(i, getFireColor(zoneValues[i]));
     }
     pixels.show();
   }
+}
+
+void patriot() {
+  static uint32_t prevTime;
+
+  if (millis() - prevTime > WAIT_PATRIOT) {
+    prevTime = millis();
+    pixels.setPixelColor(5, 128, 128, 128);
+    pixels.setPixelColor(4, 128, 128, 128);
+
+    pixels.setPixelColor(0, 0, 0, 128);
+    pixels.setPixelColor(6, 0, 0, 128);
+    pixels.setPixelColor(3, 0, 0, 128);
+      
+    pixels.setPixelColor(1, 128, 0, 0);
+    pixels.setPixelColor(2, 128, 0, 0);
+
+    pixels.show();
+  }
+
 }
 
 #pragma endregion Effects
@@ -222,7 +242,6 @@ void buttonTick() {
 }
 
 void setup() {
-  Serial.begin(9600);
   pixels.begin(); // This initializes the NeoPixel library.
   pinMode(BTN_PIN, INPUT_PULLUP);
   attachInterrupt(0, buttonTick, FALLING);
@@ -234,16 +253,17 @@ void loop() {
     intFlag = false;    // сбрасываем
     // совершаем какие-то действия
     draw_step = 0;
-    draw_mode = (draw_mode + 1) % 5;
+    draw_mode = (draw_mode + 1) % 6;
   }
 
   switch (draw_mode)
   {
-  case REACTOR: reactor(); break;
-  case RAINBOW: rainbow(); break;
-  case SPARKS: sparks(); break;
-  case LOADING: loading(); break;
-  case FIRE: fire(); break;
+    case REACTOR: reactor(); break;
+    case RAINBOW: rainbow(); break;
+    case SPARKS: sparks(); break;
+    case LOADING: loading(); break;
+    case FIRE: fire(); break;
+    case PATRIOT: patriot(); break;
   }
 
 }
