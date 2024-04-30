@@ -17,13 +17,28 @@
 #define G_REACTOR_CENTER 255
 #define B_REACTOR_CENTER 255
 
+// настройки пламени
+#define HUE_START 3     // начальный цвет огня (0 красный, 80 зелёный, 140 молния, 190 розовый)
+#define HUE_GAP 18      // коэффициент цвета огня (чем больше - тем дальше заброс по цвету)
+#define SMOOTH_K 0.15   // коэффициент плавности огня
+#define MIN_BRIGHT 80   // мин. яркость огня
+#define MAX_BRIGHT 255  // макс. яркость огня
+#define MIN_SAT 245     // мин. насыщенность
+#define MAX_SAT 255     // макс. насыщенность
+
 #define WAIT_REACTOR 30
 #define WAIT_RAINBOW 30
 #define WAIT_SPARKS 60
 #define WAIT_LOADING 90
+#define WAIT_FIRE 90
 
 #define NUMPIXELS 7 
 #pragma endregion
+
+// для разработчиков
+#define ZONE_AMOUNT NUMPIXELS   // количество зон
+byte zoneValues[ZONE_AMOUNT];
+byte zoneRndValues[ZONE_AMOUNT];
 
 // Which pin on the Arduino is connected to the NeoPixels?
 // On a Trinket or Gemma we suggest changing this to 1
@@ -39,6 +54,7 @@ volatile uint16_t draw_mode = 0;
 #define RAINBOW 1
 #define SPARKS 2
 #define LOADING 3
+#define FIRE 4
 
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -110,9 +126,33 @@ void loading() {
   
 }
 
+void fire() {
+  static uint32_t prevTime, prevTime2;
+
+  // задаём направление движения огня
+  if (millis() - prevTime > 100) {
+    prevTime = millis();
+    for(int i=0; i<ZONE_AMOUNT; i++) {
+      zoneRndValues[i] = random(0, 10);
+    }
+  }
+
+  // двигаем пламя
+  if (millis() - prevTime2 > 20) {
+    prevTime2 = millis();
+    int thisPos = 0, lastPos = 0;
+    for(int i=0; i<ZONE_AMOUNT;i++) {
+      zoneValues[i] = (float)zoneValues[i] * (1 - SMOOTH_K) + (float)zoneRndValues[i] * 10 * SMOOTH_K;
+      pixels.setPixelColor(i, getFireColor(zoneValues[i]));
+    }
+    pixels.show();
+  }
+}
+
 #pragma endregion Effects
 
 #pragma region Helpers
+
 static uint32_t Color(uint8_t r, uint8_t g, uint8_t b) {
     return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
   }
@@ -138,6 +178,34 @@ uint32_t Wheel(byte WheelPos) {
    return Color(0, WheelPos * 3, 255 - WheelPos * 3);
   }
 }
+
+uint32_t HSV(byte h, byte s, byte v) {
+  byte r, g, b;
+	byte value = ((24 * h / 17) / 60) % 6;
+	byte vmin = (long)v - v * s / 255;
+	byte a = (long)v * s / 255 * (h * 24 / 17 % 60) / 60;
+	byte vinc = vmin + a;
+	byte vdec = v - a;
+	switch (value) {
+	case 0: r = v; g = vinc; b = vmin; break;
+	case 1: r = vdec; g = v; b = vmin; break;
+	case 2: r = vmin; g = v; b = vinc; break;
+	case 3: r = vmin; g = vdec; b = v; break;
+	case 4: r = vinc; g = vmin; b = v; break;
+	case 5: r = v; g = vmin; b = vdec; break;
+	}
+	return Color(r, g, b);
+}
+
+
+uint32_t getFireColor(int val) {
+  // чем больше val, тем сильнее сдвигается цвет, падает насыщеность и растёт яркость
+  return HSV(
+           HUE_START + map(val, 20, 60, 0, HUE_GAP),                    // H
+           constrain(map(val, 20, 60, MAX_SAT, MIN_SAT), 0, 255),       // S
+           constrain(map(val, 20, 60, MIN_BRIGHT, MAX_BRIGHT), 0, 255)  // V
+         );
+}
 #pragma endregion
 
 void buttonTick() {
@@ -157,7 +225,7 @@ void loop() {
     intFlag = false;    // сбрасываем
     // совершаем какие-то действия
     draw_step = 0;
-    draw_mode = (draw_mode + 1) % 4;
+    draw_mode = (draw_mode + 1) % 5;
   }
 
   switch (draw_mode)
@@ -166,6 +234,7 @@ void loop() {
   case RAINBOW: rainbow(); break;
   case SPARKS: sparks(); break;
   case LOADING: loading(); break;
+  case FIRE: fire(); break;
   }
 
   draw_step++;
