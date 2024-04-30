@@ -3,7 +3,8 @@
 
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
-#include <Effects.h>
+#include <helpers.h>
+#include <const.h>
 
 #ifdef __AVR__
   #include <avr/power.h>
@@ -14,19 +15,6 @@
 #define PIN       3
 #define BTN_PIN   2 
 
-#define R_REACTOR 2
-#define G_REACTOR 130
-#define B_REACTOR 195
-
-#define R_REACTOR_CENTER 190
-#define G_REACTOR_CENTER 255
-#define B_REACTOR_CENTER 255
-
-#define WAIT_REACTOR 30
-#define WAIT_RAINBOW 15
-#define WAIT_SPARKS 60
-
-#define NUMPIXELS      7  
 
 volatile bool intFlag = false;   // флаг
 volatile uint16_t draw_step = 0;
@@ -35,10 +23,13 @@ volatile uint16_t draw_mode = 0;
 #define REACTOR 0
 #define RAINBOW 1
 #define SPARKS 2
+#define LOADING 3
 
 
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
+
+#pragma region Effects
 
 void reactor() {
 
@@ -89,16 +80,22 @@ void sparks() {
 
 }
 
-void loading(uint8_t wait) {
+void loading() {
 
   pixels.clear();
-  pixels.setBrightness(255);
-  pixels.setPixelColor(1, 128, 128, 128);
-  pixels.setPixelColor(2, 30, 30, 30);
-  pixels.setPixelColor(3, 10, 10, 10);
+  pixels.setPixelColor((draw_step + 1) % 6, 128, 128, 128);
+  pixels.setPixelColor((draw_step + 2) % 6, 30, 30, 30);
+  pixels.setPixelColor((draw_step + 3) % 6, 10, 10, 10);
+
+  draw_step%=6;
+
   pixels.show();
+
+  delay(WAIT_LOADING);
   
 }
+
+#pragma endregion Effects
 
 void buttonTick() {
   intFlag = true;   // подняли флаг прерывания
@@ -117,7 +114,7 @@ void loop() {
     intFlag = false;    // сбрасываем
     // совершаем какие-то действия
     draw_step = 0;
-    draw_mode = (draw_mode + 1) % 3;
+    draw_mode = (draw_mode + 1) % 4;
   }
 
   switch (draw_mode)
@@ -125,6 +122,7 @@ void loop() {
   case REACTOR: reactor(); break;
   case RAINBOW: rainbow(); break;
   case SPARKS: sparks(); break;
+  case LOADING: loading(); break;
   }
 
   draw_step++;
